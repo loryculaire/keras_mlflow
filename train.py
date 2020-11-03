@@ -23,69 +23,59 @@ from keras.datasets import mnist
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Flatten
 from keras.layers import Conv2D, MaxPooling2D
-from keras import backend as K
-
 
 batch_size = 256
-epochs = 4
+epochs = 2
 num_classes = 10
 
 # input image dimensions
 img_rows, img_cols = 28, 28
 
 # the data, split between train and test sets
-
-# TODO : use mnist.load_data to create x_train, y_train, x_test, y_test
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
 
-# TODO : reshape your data according to keras setting and define an
-# input_shape argument you will feed the model
-if K.image_data_format() == 'channels_first':
-    x_train = 
-    x_test = 
-    input_shape = 
-else:
-    x_train = 
-    x_test = 
-    input_shape = 
+x_train = x_train.reshape(x_train.shape[0], img_rows, img_cols, 1)
+x_test = x_test.reshape(x_test.shape[0], img_rows, img_cols, 1)
+input_shape = (img_rows, img_cols, 1)
 
-# TODO : convert X_train and X_test to float and normalise them
-
+x_train = x_train.astype('float32')
+x_test = x_test.astype('float32')
+x_train /= 255
+x_test /= 255
 print('x_train shape:', x_train.shape)
 print(x_train.shape[0], 'train samples')
 print(x_test.shape[0], 'test samples')
 
-# TODO : convert class vectors to binary class matrices using
-# keras.utils.to_categorical
+# convert class vectors to binary class matrices
+y_train = keras.utils.to_categorical(y_train, num_classes)
+y_test = keras.utils.to_categorical(y_test, num_classes)
 
-# TODO : Define a sequential model with layers :
-# Conv2D(64, (3, 3), activation='relu', input_shape=input_shape)
-# MaxPooling2D(pool_size=(2, 2)
-# Conv2D(64, kernel_size=(3, 3), activation='relu')
-# MaxPooling2D(pool_size=(2, 2))
-# Dropout(0.25)
-# Flatten()
-# Dense(128, activation='relu')
-# Dense(num_classes, activation='softmax')
+model = Sequential()
+model.add(Conv2D(64, (3, 3), activation='relu', input_shape=input_shape))
+model.add(MaxPooling2D(pool_size=(2, 2)))
+model.add(Conv2D(64, kernel_size=(3, 3), activation='relu'))
+model.add(MaxPooling2D(pool_size=(2, 2)))
+model.add(Dropout(0.25))
+model.add(Flatten())
+model.add(Dense(128, activation='relu'))
+model.add(Dense(num_classes, activation='softmax'))
 
+model.compile(loss=keras.losses.categorical_crossentropy,
+              optimizer=keras.optimizers.Adadelta(),
+              metrics=['accuracy'])
 
-# TODO : Compile model with categorical cross entropy loss, optimizer Adam and 
-# accuracy metric
-model.compile()
-
-# TODO : fit the model
-model.fit(, ,
-          batch_size=,
-          epochs=,
+model.fit(x_train, y_train,
+          batch_size=batch_size,
+          epochs=epochs,
           verbose=1,
-          validation_data=(, ))
+          validation_data=(x_test, y_test))
+score = model.evaluate(x_test, y_test, verbose=0)
 
-# TODO : store the result of model. evaluate in a variable score
-score = 
+with mlflow.start_run():
+    
+    mlflow.log_metric("cross_entropy_test_loss", score[0])
+    mlflow.log_metric("test_accuracy", score[1])
+    print('Test loss:', score[0])
+    print('Test accuracy:', score[1])
 
-# TODO : log the loss and score as metric to mlflow
-
-print('Test loss:', score[0])
-print('Test accuracy:', score[1])
-
-# TODO : log the model to mlflow
+    mlflow.keras.log_model(model, artifact_path="keras-model")
